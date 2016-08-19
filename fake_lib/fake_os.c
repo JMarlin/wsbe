@@ -27,6 +27,11 @@ uint32_t* fake_os_getActiveVesaBuffer(uint16_t* width, uint16_t* height) {
     *width = FO_SCREEN_WIDTH;
     *height = FO_SCREEN_HEIGHT;
 
+    //Clear the framebuffer to black
+    int i;
+    for(i = 0; i < (*width) * (*height); i++)
+        return_buffer[i] = 0xFF000000; //The canvas *does* care about the opacity being set, which is annoying
+    
     //Now we'll create the output canvas and insert it into the document
     //(EM_ASM allows us to embed JS into our C)
     //We will also se up the refresh timer here
