@@ -73,10 +73,10 @@ uint8_t pseudo_rand_8() {
 //Method for painting a WindowObj to its context:
 void WindowObj_paint(WindowObj* window) {
 
-    uint32_t fill_color = 0xFF000000 |
+    uint32_t fill_color = 0xFF000000 |           //Opacity
                           pseudo_rand_8() << 0 | //R
                           pseudo_rand_8() << 8 | //G
-                          pseudo_rand_8() << 16;   //B
+                          pseudo_rand_8() << 16; //B
 
     Context_fillRect(window->context, window->x, window->y,
                      window->width, window->height, fill_color);
