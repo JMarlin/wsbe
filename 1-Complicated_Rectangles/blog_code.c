@@ -11,7 +11,7 @@ typedef struct Context_struct {
 
 //Simple for-loop rectangle into a context
 void Context_fillRect(Context* context, unsigned int x, unsigned int y,  
-                         unsigned int width, unsigned int height, uint32_t color) {
+                      unsigned int width, unsigned int height, uint32_t color) {
 
     unsigned int cur_x;
     unsigned int max_x = x + width;
@@ -26,31 +26,27 @@ void Context_fillRect(Context* context, unsigned int x, unsigned int y,
 
     //Draw the rectangle into the framebuffer line-by line
     //(bonus points if you write an assembly routine to do it faster)
-    for( ; y < max_y; y++) {
-     
-        for(cur_x = x ; cur_x < max_x; cur_x++) {
-     
+    for( ; y < max_y; y++) 
+        for(cur_x = x ; cur_x < max_x; cur_x++) 
             context->buffer[y * context->width + cur_x] = color;
-        }
-    }
 }
 
 //Window 'class'
-typedef struct WindowObj_struct {  
+typedef struct Window_struct {  
     uint16_t x;
     uint16_t y;
     uint16_t width;
     uint16_t height;
     Context* context;
-} WindowObj;
+} Window;
 
 //Window constructor
-WindowObj* WindowObj_new(unsigned int x, unsigned int y,  
-                         unsigned int width, unsigned int height, Context* context) {
+Window* Window_new(unsigned int x, unsigned int y,  
+                   unsigned int width, unsigned int height, Context* context) {
 
     //Try to allocate space for a new WindowObj and fail through if malloc fails
-    WindowObj* window;
-    if(!(window = (WindowObj*)malloc(sizeof(WindowObj))))
+    Window* window;
+    if(!(window = (Window*)malloc(sizeof(Window))))
         return window;
 
     //Assign the property values
@@ -71,12 +67,12 @@ uint8_t pseudo_rand_8() {
 }
 
 //Method for painting a WindowObj to its context:
-void WindowObj_paint(WindowObj* window) {
+void Window_paint(Window* window) {
 
-    uint32_t fill_color = 0xFF000000 |           //Opacity
-                          pseudo_rand_8() << 0 | //R
-                          pseudo_rand_8() << 8 | //G
-                          pseudo_rand_8() << 16; //B
+    uint32_t fill_color = 0xFF000000 |            //Opacity
+                          pseudo_rand_8() << 16 | //B
+                          pseudo_rand_8() << 8  | //G
+                          pseudo_rand_8();        //R
 
     Context_fillRect(window->context, window->x, window->y,
                      window->width, window->height, fill_color);
@@ -90,14 +86,14 @@ int main(int argc, char* argv[]) {
     context.buffer = fake_os_getActiveVesaBuffer(&context.width, &context.height);
 
     //Create a few windows
-    WindowObj* win1 = WindowObj_new(10, 10, 300, 200, &context);
-    WindowObj* win2 = WindowObj_new(100, 150, 400, 400, &context);
-    WindowObj* win3 = WindowObj_new(200, 100, 200, 600, &context);
+    Window* win1 = Window_new(10, 10, 300, 200, &context);
+    Window* win2 = Window_new(100, 150, 400, 400, &context);
+    Window* win3 = Window_new(200, 100, 200, 600, &context);
 
     //And draw them
-    WindowObj_paint(win1);
-    WindowObj_paint(win2);
-    WindowObj_paint(win3);    
+    Window_paint(win1);
+    Window_paint(win2);
+    Window_paint(win3);    
 
     return 0;
 }
