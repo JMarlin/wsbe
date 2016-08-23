@@ -23,7 +23,7 @@ ListNode* ListNode_new(void* payload) {
     //Assign initial properties
     list_node->prev = (ListNode*)0;
     list_node->next = (ListNode*)0;
-    list_node->payload = (void*)0; 
+    list_node->payload = payload; 
 
     return list_node;
 }
@@ -93,14 +93,14 @@ void* List_get_at(List* list, unsigned int index) {
 
     //If there's nothing in the list or we're requesting beyond the end of
     //the list, return nothing
-    if(list->count == 0 || index >= list->count)
+    if(list->count == 0 || index >= list->count) 
         return (void*)0;
 
     //Iterate through the items in the list until we hit our index
     ListNode* current_node = list->root_node;
 
     //Iteration, making sure we don't hang on malformed lists
-    for(unsigned int current_index = 0; current_index < index && current_node; current_index++)
+    for(unsigned int current_index = 0; (current_index < index) && current_node; current_index++)
         current_node = current_node->next;
 
     //Return the payload, guarding against malformed lists
@@ -179,8 +179,6 @@ uint8_t pseudo_rand_8() {
 //Method for painting a WindowObj to its context:
 void Window_paint(Window* window) {
 
-    printf("Painting window!\n");
-
     uint32_t fill_color = 0xFF000000 |            //Opacity
                           pseudo_rand_8() << 16 | //B
                           pseudo_rand_8() << 8  | //G
@@ -248,10 +246,9 @@ void Desktop_paint(Desktop* desktop) {
     Window* current_window;
 
     //Get and draw windows until we stop getting valid windows out of the list 
-    for(i = 0; (current_window = (Window*)List_get_at(desktop->children, i)); i++) {
-
+    for(i = 0; (current_window = (Window*)List_get_at(desktop->children, i)); i++)
         Window_paint(current_window);
-    }
+        
 }
 
 
