@@ -1,7 +1,6 @@
 #include "../fake_lib/fake_os.h"
 #include <inttypes.h>
 #include <stdlib.h>
-#include <emscripten.h>
 
 //================| ListNode Class |================//
 
@@ -33,7 +32,7 @@ ListNode* ListNode_new(void* payload) {
 
 //A type to encapsulate a basic dynamic list
 typedef struct List_struct {
-    unsigned int count; //All we know for now is that there will be a number of items
+    unsigned int count; 
     ListNode* root_node;
 } List;
 
