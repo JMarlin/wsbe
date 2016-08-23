@@ -29,7 +29,7 @@ ListNode* ListNode_new(void* payload) {
 }
 
 
-//================| ListNode Class |================//
+//================| List Class |================//
 
 //A type to encapsulate a basic dynamic list
 typedef struct List_struct {
