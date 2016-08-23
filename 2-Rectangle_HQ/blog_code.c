@@ -245,6 +245,11 @@ void Desktop_paint(Desktop* desktop) {
     unsigned int i;
     Window* current_window;
 
+    //Start by clearing the desktop background
+    Context_fillRect(desktop->context, 0, 0, desktop->context->width,
+                     desktop->context->height, 0xFFFF9933); //Change pixel format if needed 
+                                                            //Currently: ABGR
+
     //Get and draw windows until we stop getting valid windows out of the list 
     for(i = 0; (current_window = (Window*)List_get_at(desktop->children, i)); i++)
         Window_paint(current_window);
