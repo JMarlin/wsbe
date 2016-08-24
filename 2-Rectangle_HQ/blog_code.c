@@ -217,8 +217,8 @@ Desktop* Desktop_new(Context* context) {
 }
 
 //A method to automatically create a new window in the provided desktop 
-Window* Desktop_create_window(Desktop* desktop, unsigned int x, unsigned int y,  
-                          unsigned int width, unsigned int height) {
+Window* Desktop_create_window(Desktop* desktop, uint16_t x, uint16_t y,  
+                              uint16_t width, uint16_t height) {
 
     //Attempt to create the window instance
     Window* window;
