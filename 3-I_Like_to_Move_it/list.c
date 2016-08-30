@@ -74,3 +74,55 @@ void* List_get_at(List* list, unsigned int index) {
     //Return the payload, guarding against malformed lists
     return current_node ? current_node->payload : (void*)0;
 }
+
+//Remove the item at the specified index from the list and return the item that
+//was removed
+//Indices are zero-based
+void* List_remove_at(List* list, unsigned int index) {
+
+    //This operates very similarly to List_get_at
+
+    void* payload; 
+
+    //Bounds check
+    if(list->count == 0 || index >= list->count) 
+        return (void*)0;
+
+    //Iterate through the items
+    ListNode* current_node = list->root_node;
+
+    for(unsigned int current_index = 0; (current_index < index) && current_node; current_index++)
+        current_node = current_node->next;
+
+    //This is where we differ from List_get_at by stashing the payload,
+    //re-pointing the current node's neighbors to each other and 
+    //freeing the removed node 
+
+    //Return early if we got a null node somehow
+    if(!current_node)
+        return (void*)0;
+
+    //Stash the payload so we don't lose it when we delete the node     
+    payload =  current_node->payload;
+ 
+    //Re-point neighbors to each other 
+    if(current_node->prev)
+        current_node->prev->next = current_node->next;
+
+    if(current_node->next)
+        current_node->next->prev = current_node->prev;
+
+    //If the item was the root item, we need to make
+    //the node following it the new root
+    if(index == 0)
+        list->root_node = current_node->next;
+
+    //Now that we've clipped the node out of the list, we must free its memory
+    free(current_node); 
+
+    //Make sure the count of items is up-to-date
+    list->count--; 
+
+    //Finally, return the payload
+    return payload;
+}

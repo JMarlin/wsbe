@@ -3,6 +3,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+mouse_handler installed_mouse_callback = (mouse_handler)0;
+
 //Returns the pointer to the buffer in the return value and the width and the height
 //in the supplied pointers
 uint32_t* fake_os_getActiveVesaBuffer(uint16_t* width, uint16_t* height) {
@@ -39,6 +41,8 @@ uint32_t* fake_os_getActiveVesaBuffer(uint16_t* width, uint16_t* height) {
         
         //Create and store canvas and information
         window.fo_canvas = document.createElement('canvas');
+        document.body.style.margin = '0px';
+        window.fo_canvas.style.cursor = 'none';
         window.fo_canvas.width = $0;
         window.fo_canvas.height = $1;
         window.fo_buf_address = $2;
@@ -61,4 +65,62 @@ uint32_t* fake_os_getActiveVesaBuffer(uint16_t* width, uint16_t* height) {
     }, FO_SCREEN_WIDTH, FO_SCREEN_HEIGHT, return_buffer);
 
     return return_buffer;
+}
+
+void EMSCRIPTEN_KEEPALIVE fake_os_doMouseCallback(void) {
+
+    uint16_t mouse_x, mouse_y;
+    uint8_t buttons;
+
+    if(!installed_mouse_callback)
+        return;
+
+    //A mouse event has happened, so get the updated info 
+    mouse_x = EM_ASM_INT({
+        return window.fo_mouse_x;
+    }, 0);
+
+    mouse_y = EM_ASM_INT({
+        return window.fo_mouse_y;
+    }, 0);
+
+    buttons = EM_ASM_INT({
+        return window.fo_button_status;
+    }, 0);
+
+    //Fire callback
+    installed_mouse_callback(mouse_x, mouse_y, buttons);
+}
+
+void fake_os_installMouseCallback(mouse_handler new_handler) {
+
+    //This is literally just here so that the function 
+    //doesn't get optimized out
+    fake_os_doMouseCallback();
+
+    EM_ASM(
+
+        //Attach status update function to the screen canvas
+        window.fo_button_status = 0;
+        window.fo_mouse_x = 0;
+        window.fo_mouse_y = 0;
+        window.fo_canvas.onmousemove = function(e) {
+            
+            window.fo_mouse_x = e.clientX;
+            window.fo_mouse_y = e.clientY;
+            Module.ccall('fake_os_doMouseCallback');
+        };
+        window.fo_canvas.onmousedown = function(e) {
+
+            window.fo_button_status = 1;
+            Module.ccall('fake_os_doMouseCallback');
+        };
+        window.fo_canvas.onmouseup = function(e) {
+
+            window.fo_button_status = 0;
+            Module.ccall('fake_os_doMouseCallback');
+        };
+    );
+
+    installed_mouse_callback = new_handler;
 }
