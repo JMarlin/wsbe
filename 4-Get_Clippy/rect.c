@@ -139,7 +139,7 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
         //Shrink the subject rectangle to exclude the split portion
         subject_copy.bottom = cutting_rect->bottom;
     }
-
+ 
     //Finally, after all that, we can return the output rectangles 
     return output_rects;
 }

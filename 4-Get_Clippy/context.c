@@ -106,7 +106,7 @@ void Context_draw_rect(Context* context, int x, int y,
     Context_horizontal_line(context, x, y, width, color); //top
     Context_vertical_line(context, x, y + 1, height - 2, color); //left 
     Context_horizontal_line(context, x, y + height - 1, width, color); //bottom
-    Context_vertical_line(context, x + width - 1, y, height -2, color); //right
+    Context_vertical_line(context, x + width - 1, y + 1, height - 2, color); //right
 }
 
 //Insert the passed rectangle into the clip list, splitting all
@@ -142,8 +142,14 @@ void Context_add_clip_rect(Context* context, Rect* added_rect) {
         free(cur_rect); //We can throw this away now, we're done with it
 
         //Copy the split, non-overlapping result rectangles into the list 
-        for(; split_rects->count; cur_rect = (Rect*)List_remove_at(split_rects, 0))
+        while(split_rects->count) {
+
+            cur_rect = (Rect*)List_remove_at(split_rects, 0);
             List_add(context->clip_rects, cur_rect);
+        }
+
+        //Free the empty split_rect list 
+        free(split_rects);
 
         //Since we removed an item from the list, we need to start counting over again 
         //In this way, we'll only exit this loop once nothing in the list overlaps 
