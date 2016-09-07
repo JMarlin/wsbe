@@ -22,6 +22,7 @@ Context* Context_new(uint16_t width, uint16_t height, uint32_t* buffer) {
     //Finish assignments
     context->width = width; 
     context->height = height; 
+    context->buffer = buffer;
 
     return context;
 }
@@ -54,49 +55,18 @@ void Context_fill_rect(Context* context, int x, int y,
             context->buffer[y * context->width + cur_x] = color;
 }
 
-//Simple for-loop horizontal line into a context
+//A horizontal line as a filled rect of height 1
 void Context_horizontal_line(Context* context, int x, int y,
                              unsigned int length, uint32_t color) {
 
-    //Don't need to do anything if line is above or below the screen
-    if(y < 0 || y >= context->height)
-        return;
-
-    int max_x = x + length;
-
-    //Make sure we don't go outside of the framebuffer:
-    if(x < 0)
-        x = 0;
-
-    if(max_x > context->width)
-        max_x = context->width; 
-
-    //Draw the line
-    for( ; x < max_x; x++)  
-        context->buffer[y * context->width + x] = color;
+    Context_fill_rect(context, x, y, length, 1, color);
 }
 
-//Simple for-loop vertical line into a context
+//A vertical line as a filled rect of width 1
 void Context_vertical_line(Context* context, int x, int y,
                            unsigned int length, uint32_t color) {
 
-    //Don't need to do anything if line is to the left or right
-    //of the screen
-    if(x < 0 || x >= context->width)
-        return;
-
-    int max_y = y + length;
-
-    //Make sure we don't go outside of the framebuffer:
-    if(y < 0)
-        y = 0;
-
-    if(max_y > context->height)
-        max_y = context->height; 
-
-    //Draw the line
-    for( ; y < max_y; y++)  
-        context->buffer[y * context->width + x] = color;
+    Context_fill_rect(context, x, y, 1, length, color);
 }
 
 //Rectangle drawing using our horizontal and vertical lines

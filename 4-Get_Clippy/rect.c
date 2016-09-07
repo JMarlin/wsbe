@@ -22,9 +22,9 @@ Rect* Rect_new(int top, int left, int bottom, int right) {
 //Explode subject_rect into a list of contiguous rects which are
 //not occluded by cutting_rect
 // ________                ____ ___
-//|s    ___|____          |o   |o__|____
-//|____|___|   c|   --->  |____|       c|   
-//     |________|              |________|
+//|s    ___|____          |o   |o__|
+//|____|___|   c|   --->  |____|          
+//     |________|              
 List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
 
     //Allocate the list of result rectangles
