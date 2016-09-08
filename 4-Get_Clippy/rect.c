@@ -77,8 +77,11 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
 
             //If the object creation failed, we need to delete the list and exit failed
             //This time, also delete any previously allocated rectangles
-            for(; output_rects->count; temp_rect = List_remove_at(output_rects, 0))
+            while(output_rects->count) {
+                
+                temp_rect = List_remove_at(output_rects, 0)
                 free(temp_rect);
+            }
 
             free(output_rects);
 
@@ -101,8 +104,11 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
                                   subject_copy.bottom, subject_copy.right))) {
 
             //Free on fail
-            for(; output_rects->count; temp_rect = List_remove_at(output_rects, 0))
+            while(output_rects->count) {
+                
+                temp_rect = List_remove_at(output_rects, 0)
                 free(temp_rect);
+            }
 
             free(output_rects);
 
@@ -125,8 +131,11 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
                                   subject_copy.bottom, subject_copy.right))) {
 
             //Free on fail
-            for(; output_rects->count; temp_rect = List_remove_at(output_rects, 0))
+            while(output_rects->count) {
+                
+                temp_rect = List_remove_at(output_rects, 0)
                 free(temp_rect);
+            }
 
             free(output_rects);
 
