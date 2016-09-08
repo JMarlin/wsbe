@@ -1,0 +1,23 @@
+#ifndef WINDOW_H
+#define WINDOW_H 
+
+#include "context.h"
+#include <inttypes.h>
+
+//================| Window Class Declaration |================//
+
+typedef struct Window_struct {  
+    int16_t x;
+    int16_t y;
+    uint16_t width;
+    uint16_t height;
+    uint32_t fill_color;
+    Context* context;
+} Window;
+
+//Methods
+Window* Window_new(int16_t x, int16_t y,  
+                   uint16_t width, uint16_t height, Context* context);
+void Window_paint(Window* window);
+
+#endif //WINDOW_H
