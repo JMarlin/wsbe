@@ -1,0 +1,32 @@
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
+#include <inttypes.h>
+#include "list.h"
+#include "rect.h"
+
+//================| Context Class Declaration |================//
+
+//A structure for holding information about a framebuffer
+typedef struct Context_struct {  
+    uint32_t* buffer; //A pointer to our framebuffer
+    uint16_t width; //The dimensions of the framebuffer
+    uint16_t height; 
+    List* clip_rects;
+} Context;
+
+//Methods
+Context* Context_new(uint16_t width, uint16_t height, uint32_t* buffer);
+void Context_fill_rect(Context* context, int x, int y,  
+                       unsigned int width, unsigned int height, uint32_t color);
+void Context_horizontal_line(Context* context, int x, int y,
+                             unsigned int length, uint32_t color);
+void Context_vertical_line(Context* context, int x, int y,
+                           unsigned int length, uint32_t color);                                                   
+void Context_draw_rect(Context* context, int x, int y,
+                       unsigned int width, unsigned int height, uint32_t color);
+void Context_subtract_clip_rect(Context* context, Rect* subtracted_rect);                       
+void Context_add_clip_rect(Context* context, Rect* rect);
+void Context_clear_clip_rects(Context* context);
+
+#endif //CONTEXT_H
