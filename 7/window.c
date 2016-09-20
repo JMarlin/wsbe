@@ -249,7 +249,8 @@ void Window_paint_handler(Window* window) {
 
     //Fill in the window background
     Context_fill_rect(window->context, 0, 0,
-                      window->width, window->height, WIN_BGCOLOR);
+                      window->width - (2*WIN_BORDERWIDTH), 
+                      window->height - (WIN_TITLEHEIGHT + WIN_BORDERWIDTH), WIN_BGCOLOR);
 }
 
 //Used to get a list of windows overlapping the passed window
@@ -295,6 +296,45 @@ void Window_process_mouse(Window* window, uint16_t mouse_x,
 
     int i, inner_x1, inner_y1, inner_x2, inner_y2;
     Window* child;
+
+    //Check to see if the mouse is within the body of a child window
+    if(!window->drag_child) { 
+
+        for(i = window->children->count - 1; i >= 0; i--) {
+
+            child = (Window*)List_get_at(window->children, i);
+
+            //Get the window bounds
+            inner_x1 = child->x;
+            inner_y1 = child->y;
+            inner_x2 = child->x + child->width;
+            inner_y2 = child->y + child->height;
+
+            //With the area to check adjusted, do the actual check
+            if(mouse_x >= inner_x1 && mouse_x < inner_x2 &&
+               mouse_y >= inner_y1 && mouse_y < inner_y2) {
+
+                //If the child window is decorated, the 'body' of the window
+                //excludes the window decorations
+                if(!(child->flags & WIN_NODECORATION)) {
+                
+                    inner_x1 += WIN_BORDERWIDTH;
+                    inner_y1 += WIN_TITLEHEIGHT;
+                    inner_x2 -= WIN_BORDERWIDTH;
+                    inner_y2 -= WIN_BORDERWIDTH;
+
+                    if(!(mouse_x >= inner_x1 && mouse_x < inner_x2 &&
+                        mouse_y >= inner_y1 && mouse_y < inner_y2)) 
+                        break;
+                }
+
+                //Forward the mouse event to the matched child and exit
+                Window_process_mouse(child, mouse_x - child->x, mouse_y - child->y, mouse_buttons);
+                return;
+            }
+        }
+    }
+
 
     //Check to see if mouse button has been depressed since last mouse update
     if(mouse_buttons) {
