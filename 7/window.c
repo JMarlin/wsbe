@@ -62,7 +62,10 @@ int Window_init(Window* window, int16_t x, int16_t y, uint16_t width,
 int Window_screen_x(Window* window) {
 
     if(window->parent)
-        return window->x + Window_screen_x(window->parent);
+        if(window->parent->flags & WIN_NODECORATION)
+            return window->x + Window_screen_x(window->parent);
+        else
+            return window->x + Window_screen_x(window->parent) + WIN_BORDERWIDTH;
     
     return window->x;
 }
@@ -71,8 +74,11 @@ int Window_screen_x(Window* window) {
 int Window_screen_y(Window* window) {
 
     if(window->parent)
-        return window->y + Window_screen_y(window->parent);
-    
+        if(window->parent->flags & WIN_NODECORATION)
+            return window->y + Window_screen_y(window->parent);
+        else
+            return window->y + Window_screen_y(window->parent) + WIN_TITLEHEIGHT;
+
     return window->y;
 }
 

@@ -12,6 +12,7 @@ typedef struct Context_struct {
     uint32_t* buffer; //A pointer to our framebuffer
     uint16_t width; //The dimensions of the framebuffer
     uint16_t height; 
+    uint8_t clipping_on;
     int translate_x; //Our new translation values
     int translate_y;
     List* clip_rects;
