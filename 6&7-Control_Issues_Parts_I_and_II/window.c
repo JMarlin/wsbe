@@ -54,6 +54,7 @@ int Window_init(Window* window, int16_t x, int16_t y, uint16_t width,
     window->drag_off_y = 0;
     window->last_button_state = 0;
     window->paint_function = Window_paint_handler;
+    window->mousedown_function = Window_mousedown_handler;
   
     return 1;
 }
@@ -62,10 +63,7 @@ int Window_init(Window* window, int16_t x, int16_t y, uint16_t width,
 int Window_screen_x(Window* window) {
 
     if(window->parent)
-        if(window->parent->flags & WIN_NODECORATION)
-            return window->x + Window_screen_x(window->parent);
-        else
-            return window->x + Window_screen_x(window->parent) + WIN_BORDERWIDTH;
+        return window->x + Window_screen_x(window->parent);
     
     return window->x;
 }
@@ -74,11 +72,8 @@ int Window_screen_x(Window* window) {
 int Window_screen_y(Window* window) {
 
     if(window->parent)
-        if(window->parent->flags & WIN_NODECORATION)
-            return window->y + Window_screen_y(window->parent);
-        else
-            return window->y + Window_screen_y(window->parent) + WIN_TITLEHEIGHT;
-
+        return window->y + Window_screen_y(window->parent);
+    
     return window->y;
 }
 
@@ -255,8 +250,7 @@ void Window_paint_handler(Window* window) {
 
     //Fill in the window background
     Context_fill_rect(window->context, 0, 0,
-                      window->width - (2*WIN_BORDERWIDTH), 
-                      window->height - (WIN_TITLEHEIGHT + WIN_BORDERWIDTH), WIN_BGCOLOR);
+                      window->width, window->height, WIN_BGCOLOR);
 }
 
 //Used to get a list of windows overlapping the passed window
@@ -303,85 +297,53 @@ void Window_process_mouse(Window* window, uint16_t mouse_x,
     int i, inner_x1, inner_y1, inner_x2, inner_y2;
     Window* child;
 
-    //Check to see if the mouse is within the body of a child window
-    if(!window->drag_child) { 
+    //If we had a button depressed, then we need to see if the mouse was
+    //over any of the child windows
+    //We go front-to-back in terms of the window stack for free occlusion
+    for(i = window->children->count - 1; i >= 0; i--) {
 
-        for(i = window->children->count - 1; i >= 0; i--) {
+        child = (Window*)List_get_at(window->children, i);
 
-            child = (Window*)List_get_at(window->children, i);
+        //If mouse isn't window bounds, we can't possibly be interacting with it 
+        if(!(mouse_x >= child->x && mouse_x < (child->x + child->width) &&
+           mouse_y >= child->y && mouse_y < (child->y + child->height))) 
+            continue;
 
-            //Get the window bounds
-            inner_x1 = child->x;
-            inner_y1 = child->y;
-            inner_x2 = child->x + child->width;
-            inner_y2 = child->y + child->height;
+        //Now we'll check to see if we're dragging a titlebar
+        if(mouse_buttons && !window->last_button_state) {
 
-            //With the area to check adjusted, do the actual check
-            if(mouse_x >= inner_x1 && mouse_x < inner_x2 &&
-               mouse_y >= inner_y1 && mouse_y < inner_y2) {
+            //Let's adjust things so that a raise happens whenever we click inside a 
+            //child, to be more consistent with most other GUIs
+            List_remove_at(window->children, i); //Pull window out of list
+            List_add(window->children, (void*)child); //Insert at the top
 
-                //If the child window is decorated, the 'body' of the window
-                //excludes the window decorations
-                if(!(child->flags & WIN_NODECORATION)) {
+            //See if the mouse position lies within the bounds of the current
+            //window's 31 px tall titlebar
+            //We check the decoration flag since we can't drag a window without a titlebar
+            if(!(child->flags & WIN_NODECORATION) && 
+                mouse_y >= child->y && mouse_y < (child->y + 31)) {
+
+                //We'll also set this window as the window being dragged
+                //until such a time as the mouse is released
+                window->drag_off_x = mouse_x - child->x;
+                window->drag_off_y = mouse_y - child->y;
+                window->drag_child = child;
                 
-                    inner_x1 += WIN_BORDERWIDTH;
-                    inner_y1 += WIN_TITLEHEIGHT;
-                    inner_x2 -= WIN_BORDERWIDTH;
-                    inner_y2 -= WIN_BORDERWIDTH;
-
-                    if(!(mouse_x >= inner_x1 && mouse_x < inner_x2 &&
-                        mouse_y >= inner_y1 && mouse_y < inner_y2)) 
-                        break;
-                }
-
-                //Forward the mouse event to the matched child and exit
-                Window_process_mouse(child, mouse_x - child->x, mouse_y - child->y, mouse_buttons);
-                return;
+                //We break without setting target_child if we're doing a drag since
+                //that shouldn't trigger a mouse event in the child 
+                break;
             }
         }
+
+        //Found a target, so forward the mouse event to that window and quit looking
+        Window_process_mouse(child, mouse_x - child->x, mouse_y - child->y, mouse_buttons); 
+        break;
     }
 
-
-    //Check to see if mouse button has been depressed since last mouse update
-    if(mouse_buttons) {
-        
-        //Events for mouse up -> down transition
-        if(!window->last_button_state) {
-
-            //If we had a button depressed, then we need to see if the mouse was
-            //over any of the child windows
-            //We go front-to-back in terms of the window stack for free occlusion
-            for(i = window->children->count - 1; i >= 0; i--) {
-
-                child = (Window*)List_get_at(window->children, i);
-
-                //See if the mouse position lies within the bounds of the current
-                //window's 31 px tall titlebar
-                if(!(child->flags & WIN_NODECORATION) && //Can't drag a window without a titlebar
-                   mouse_x >= child->x && mouse_x < (child->x + child->width) &&
-                   mouse_y >= child->y && mouse_y < (child->y + 31)) {
-
-                    //The mouse was over this window when the mouse was pressed, so
-                    //we need to raise it
-                    List_remove_at(window->children, i); //Pull window out of list
-                    List_add(window->children, (void*)child); //Insert at the top 
-
-                    //We'll also set this window as the window being dragged
-                    //until such a time as the mouse is released
-                    window->drag_off_x = mouse_x - child->x;
-                    window->drag_off_y = mouse_y - child->y;
-                    window->drag_child = child;
-
-                    //Since we hit a window, we can stop looking
-                    break;
-                }
-            }
-        } 
-    } else {
-
-        //If the mouse is not down, we need to make sure our drag status is cleared
+    //Moving this outside of the mouse-in-child detection since it doesn't really
+    //have anything to do with it
+    if(!mouse_buttons)
         window->drag_child = (Window*)0;
-    }
 
     //Update drag window to match the mouse if we have an active drag window
     if(window->drag_child) {
@@ -390,8 +352,26 @@ void Window_process_mouse(Window* window, uint16_t mouse_x,
         window->drag_child->y = mouse_y - window->drag_off_y;
     }
 
+    //If we didn't find a target in the search, then we ourselves are the target of any clicks
+    if(window->mousedown_function && mouse_buttons && !window->last_button_state) 
+        window->mousedown_function(window, mouse_x, mouse_y);
+
     //Update the stored mouse button state to match the current state 
     window->last_button_state = mouse_buttons;
+}
+
+//The default handler for window mouse events doesn't do anything
+void Window_mousedown_handler(Window* window, int x, int y) {
+ 
+    return;
+}
+
+//Quick wrapper for shoving a new entry into the child list
+void Window_insert_child(Window* window, Window* child) {
+
+    child->parent = window;
+    child->context = window->context;
+    List_add(window->children, child);
 }
 
 //A method to automatically create a new window in the provided parent window

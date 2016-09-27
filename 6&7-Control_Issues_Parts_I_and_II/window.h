@@ -21,6 +21,7 @@ struct Window_struct;
 
 //Callback function type declarations
 typedef void (*WindowPaintHandler)(struct Window_struct*);
+typedef void (*WindowMousedownHandler)(struct Window_struct*, int, int);
 
 typedef struct Window_struct {  
     struct Window_struct* parent;
@@ -36,6 +37,7 @@ typedef struct Window_struct {
     uint16_t drag_off_y;
     uint8_t last_button_state;
     WindowPaintHandler paint_function;
+    WindowMousedownHandler mousedown_function;
 } Window;
 
 //Methods
@@ -47,8 +49,10 @@ void Window_paint(Window* window);
 void Window_process_mouse(Window* window, uint16_t mouse_x,
                           uint16_t mouse_y, uint8_t mouse_buttons);
 void Window_paint_handler(Window* window);
+void Window_mousedown_handler(Window* window, int x, int y);
 List* Window_get_windows_above(Window* parent, Window* child);
 Window* Window_create_window(Window* window, int16_t x, int16_t y,  
                              uint16_t width, int16_t height, uint16_t flags);
+void Window_insert_child(Window* window, Window* child);                            
 
 #endif //WINDOW_H
