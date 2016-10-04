@@ -104,10 +104,10 @@ void Window_draw_border(Window* window) {
 }
 
 //Apply clipping for window bounds without subtracting child window rects
-void Window_apply_bound_clipping(Window* window, int in_recursion) {
+void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_regions) {
 
-    Rect* temp_rect;
-    int screen_x, screen_y;
+    Rect* temp_rect, current_dirty_rect, clone_dirty_rect;
+    int screen_x, screen_y, i;
     List* clip_windows;
     Window* clipping_window;
 
@@ -136,14 +136,40 @@ void Window_apply_bound_clipping(Window* window, int in_recursion) {
 
     //If there's no parent (meaning we're at the top of the window tree)
     //then we just add our rectangle and exit
+    //Here's our change: If we were passed a dirty region list, we first
+    //clone those dirty rects into the clipping region and then intersect
+    //the top-level window bounds against it so that we're limited to the
+    //dirty region from the outset
     if(!window->parent) {
 
-        Context_add_clip_rect(window->context, temp_rect);
+        if(dirty_regions) {
+
+            //Clone the dirty regions and put them into the clipping list
+            for(i = 0; i < dirty_regions->count; i++) {
+            
+                //Clone
+                current_dirty_rect = (Rect*)List_get_at(dirty_regions, i);
+                clone_dirty_rect = Rect_new(current_dirty_rect->top,
+                                            current_dirty_rect->left,
+                                            current_dirty_rect->bottom,
+                                            current_dirty_rect->right);
+                
+                //Add
+                Context_add_clip_rect(window->context, clone_dirty_rect);
+            }
+
+            //Finally, intersect this top level window against them
+            Context_intersect_clip_rect(window->context, temp_rect);
+        } else {
+
+            Context_add_clip_rect(window->context, temp_rect);
+        }
+
         return;
     }
 
     //Otherwise, we first reduce our clipping area to the visibility area of our parent
-    Window_apply_bound_clipping(window->parent, 1);
+    Window_apply_bound_clipping(window->parent, 1, dirty_regions);
 
     //Now that we've reduced our clipping area to our parent's clipping area, we can
     //intersect our own bounds rectangle to get our main visible area  
@@ -177,14 +203,14 @@ void Window_apply_bound_clipping(Window* window, int in_recursion) {
 }
 
 //Another override-redirect function
-void Window_paint(Window* window) {
+void Window_paint(Window* window, List* dirty_regions, uint8_t paint_children) {
 
-    int i, screen_x, screen_y, child_screen_x, child_screen_y;
+    int i, j, screen_x, screen_y, child_screen_x, child_screen_y;
     Window* current_child;
     Rect* temp_rect;
 
     //Start by limiting painting to the window's visible area
-    Window_apply_bound_clipping(window, 0);
+    Window_apply_bound_clipping(window, 0, dirty_regions);
 
     //Set the context translation
     screen_x = Window_screen_x(window);
@@ -236,12 +262,39 @@ void Window_paint(Window* window) {
     window->context->translate_x = 0;
     window->context->translate_y = 0;
     
-    //Since we're still painting the whole screen whenever anything changes, we must also 
-    //call on all of our children to paint themselves so we don't miss painting anything 
+    //Even though we're no longer having all mouse events cause a redraw from the desktop
+    //down, we still need to call paint on our children in the case that we were called with
+    //a dirty region list since each window needs to be responsible for recursively checking
+    //if its children were dirtied 
+    if(!paint_children)
+        return;
+
     for(i = 0; i < window->children->count; i++) {
 
         current_child = (Window*)List_get_at(window->children, i);
-        Window_paint(current_child);
+
+        if(dirty_regions) {
+
+            //Check to see if the child is affected by any of the
+            //dirty region rectangles
+            for(j = 0; j < dirty_regions->count; j++) {
+            
+                temp_rect = (Rect*)List_get_at(dirty_regions, j);
+                
+                if(temp_rect->left <= (current_child->x + current_child->width - 1) &&
+                temp_rect->right >= current_child->x &&
+                temp_rect->top <= (current_child->y + current_child->height - 1) &&
+                temp_rect->bottom >= current_child->y)
+                    break;
+            }
+
+            //Skip drawing this child if no intersection was found
+            if(j == dirty_regions->count)
+                continue;
+        }
+
+        //Otherwise, recursively request the child to redraw its dirty areas
+        Window_paint(current_child, dirty_regions, 1);
     }
 }
 
@@ -276,6 +329,119 @@ List* Window_get_windows_above(Window* parent, Window* child) {
     //NOTE: As a bonus, this will also automatically fall through
     //if the window wasn't found
     for(; i < parent->children->count; i++) {
+
+        current_window = List_get_at(parent->children, i);
+
+        //Our good old rectangle intersection logic
+        if(current_window->x <= (child->x + child->width - 1) &&
+		   (current_window->x + current_window->width - 1) >= child->x &&
+		   current_window->y <= (child->y + child->height - 1) &&
+		   (current_window->y + current_window->height - 1) >= child->y)
+            List_add(return_list, current_window); //Insert the overlapping window
+    }
+
+    return return_list; 
+}
+
+//We're wrapping this guy so that we can handle any needed redraw
+void Window_move(Window* window, int new_x, int new_y) {
+
+    int i;
+    int old_x = window->x;
+    int old_y = window->y;
+    Rect new_window_rect;
+    List *replacement_list, *dirty_list, *dirty_windows;
+
+    //To make life a little bit easier, we'll make the not-unreasonable 
+    //rule that if a window is moved, it must become the top-most window
+    Window_raise(window, 0); //Raise it, but don't repaint it yet
+
+    //We'll hijack our dirty rect collection from our existing clipping operations
+    //So, first we'll get the visible regions of the original window position
+    Window_apply_bound_clipping(window, 0, (List*)0);
+
+    //Temporarily update the window position
+    window->x = new_x;
+    window->y = new_y;
+
+    //Calculate the new bounds
+    new_window_rect.top = Window_screen_y(window);
+    new_window_rect.left = Window_screen_x(window);
+    new_window_rect.bottom = new_window_rect.top + window->height - 1;
+    new_window_rect.right = new_window_rect.left + window->width - 1;
+
+    //Reset the window position
+    window->x = old_x;
+    window->y = old_y;
+
+    //Now, we'll get the *actual* dirty area by subtracting the new location of
+    //the window 
+    Context_subtract_clip_rect(window->context, &new_window_rect);
+
+    //Now that the context clipping tools made the list of dirty rects for us,
+    //we can go ahead and steal the list it made for our own purposes
+    //(yes, it would be cleaner to spin off our boolean rect functions so that
+    //they can be used both here and by the clipping region tools, but I ain't 
+    //got time for that junk)
+    if(!(replacement_list = List_new())) {
+
+        Context_clear_clip_rects(window->context);
+        return;
+    }
+
+    dirty_list = window->context->clip_rects;
+    window->context->clip_rects = replacement_list;
+
+    //Now, let's get all of the siblings that we overlap before the move
+    dirty_windows = Window_get_windows_below(window);
+
+    //And we'll repaint all of them using the dirty rects
+    //(removing them from the list as we go for convenience)
+    while(dirty_windows->count)
+        Window_paint((Window*)List_remove_at(dirty_windows, 0), dirty_list, 1);
+
+    //The one thing that might still be dirty is the parent we're inside of
+    Window_paint(window->parent, dirty_list, 0)
+
+    //We're done with the lists, so we can dump them
+    while(dirty_list->count)
+        free(List_remove_at(dirty_list, 0));
+
+    free(dirty_list);
+    free(dirty_windows);
+
+    //With the dirtied siblings redrawn, we can do the final update of 
+    //the window location and paint it at that new position
+    window->x = new_x;
+    window->y = new_y;
+    Window_paint(window, (List*)0, 1);
+}
+
+//Used to get a list of windows which the passed window overlaps
+//Same exact thing as get_windows_above, but goes backwards through
+//the list. Could probably be made a little less redundant if you really wanted
+List* Window_get_windows_below(Window* parent, Window* child) {
+
+    int i;
+    Window* current_window;
+    List* return_list;
+
+    //Attempt to allocate the output list
+    if(!(return_list = List_new()))
+        return return_list;
+
+    //We just need to get a list of all items in the
+    //child list at higher indexes than the passed window
+    //We start by finding the passed child in the list
+    for(i = parent->children->count - 1; i > -1; i--)
+        if(child == (Window*)List_get_at(parent->children, i))
+            break;
+
+    //Now we just need to add the remaining items in the list
+    //to the output (IF they overlap, of course)
+    //NOTE: As a bonus, this will also automatically fall through
+    //if the window wasn't found
+    for(; i > -1; i--) {
 
         current_window = List_get_at(parent->children, i);
 
