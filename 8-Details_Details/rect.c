@@ -47,7 +47,7 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
 
     //Begin splitting
     //1 -Split by left edge if that edge is between the subject's left and right edges 
-    if(cutting_rect->left >= subject_copy.left && cutting_rect->left <= subject_copy.right) {
+    if(cutting_rect->left > subject_copy.left && cutting_rect->left <= subject_copy.right) {
 
         //Try to make a new rectangle spanning from the subject rectangle's left and stopping before 
         //the cutting rectangle's left
@@ -68,7 +68,7 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
     }
 
     //2 -Split by top edge if that edge is between the subject's top and bottom edges 
-    if(cutting_rect->top >= subject_copy.top && cutting_rect->top <= subject_copy.bottom) {
+    if(cutting_rect->top > subject_copy.top && cutting_rect->top <= subject_copy.bottom) {
 
         //Try to make a new rectangle spanning from the subject rectangle's top and stopping before 
         //the cutting rectangle's top
@@ -93,7 +93,7 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
     }
 
     //3 -Split by right edge if that edge is between the subject's left and right edges 
-    if(cutting_rect->right >= subject_copy.left && cutting_rect->right <= subject_copy.right) {
+    if(cutting_rect->right >= subject_copy.left && cutting_rect->right < subject_copy.right) {
 
         //Try to make a new rectangle spanning from the subject rectangle's right and stopping before 
         //the cutting rectangle's right
@@ -117,7 +117,7 @@ List* Rect_split(Rect* subject_rect, Rect* cutting_rect) {
     }
 
     //4 -Split by bottom edge if that edge is between the subject's top and bottom edges 
-    if(cutting_rect->bottom >= subject_copy.top && cutting_rect->bottom <= subject_copy.bottom) {
+    if(cutting_rect->bottom >= subject_copy.top && cutting_rect->bottom < subject_copy.bottom) {
 
         //Try to make a new rectangle spanning from the subject rectangle's bottom and stopping before 
         //the cutting rectangle's bottom
@@ -158,16 +158,16 @@ Rect* Rect_intersect(Rect* rect_a, Rect* rect_b) {
                                 rect_a->bottom, rect_a->right)))
         return (Rect*)0;
 
-    if(rect_b->left >= result_rect->left && rect_b->left <= result_rect->right) 
+    if(rect_b->left > result_rect->left && rect_b->left <= result_rect->right) 
         result_rect->left = rect_b->left;
  
-    if(rect_b->top >= result_rect->top && rect_b->top <= result_rect->bottom) 
+    if(rect_b->top > result_rect->top && rect_b->top <= result_rect->bottom) 
         result_rect->top = rect_b->top;
 
-    if(rect_b->right >= result_rect->left && rect_b->right <= result_rect->right)
+    if(rect_b->right >= result_rect->left && rect_b->right < result_rect->right)
         result_rect->right = rect_b->right;
 
-    if(rect_b->bottom >= result_rect->top && rect_b->bottom <= result_rect->bottom)
+    if(rect_b->bottom >= result_rect->top && rect_b->bottom < result_rect->bottom)
         result_rect->bottom = rect_b->bottom;
 
     return result_rect;

@@ -34,8 +34,11 @@ int main(int argc, char* argv[]) {
     Button* button = Button_new(307, 357, 80, 30);
     Window_insert_child(window, (Window*)button);
 
-    //Draw them
-    Window_paint((Window*)desktop);
+    Button* button2 = Button_new(307, 267, 80, 30);
+    Window_insert_child(window, (Window*)button2);
+
+    //Initial draw
+    Window_paint((Window*)desktop, (List*)0, 1);
 
     //Install our handler of mouse events
     fake_os_installMouseCallback(main_mouse_callback);

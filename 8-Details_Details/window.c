@@ -55,6 +55,7 @@ int Window_init(Window* window, int16_t x, int16_t y, uint16_t width,
     window->last_button_state = 0;
     window->paint_function = Window_paint_handler;
     window->mousedown_function = Window_mousedown_handler;
+    window->active_child = (Window*)0;
   
     return 1;
 }
@@ -100,13 +101,15 @@ void Window_draw_border(Window* window) {
 
     //Fill in the titlebar background
     Context_fill_rect(window->context, screen_x + 3, screen_y + 3,
-                      window->width - 6, 25, WIN_TITLECOLOR);
+                      window->width - 6, 25,
+                      window->parent->active_child == window ? 
+                          WIN_TITLECOLOR : WIN_TITLECOLOR_INACTIVE);
 }
 
 //Apply clipping for window bounds without subtracting child window rects
 void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_regions) {
 
-    Rect* temp_rect, current_dirty_rect, clone_dirty_rect;
+    Rect *temp_rect, *current_dirty_rect, *clone_dirty_rect;
     int screen_x, screen_y, i;
     List* clip_windows;
     Window* clipping_window;
@@ -160,6 +163,7 @@ void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_r
 
             //Finally, intersect this top level window against them
             Context_intersect_clip_rect(window->context, temp_rect);
+
         } else {
 
             Context_add_clip_rect(window->context, temp_rect);
@@ -200,6 +204,62 @@ void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_r
 
     //Dispose of the used-up list 
     free(clip_windows);
+}
+
+void Window_update_title(Window* window) {
+
+    int screen_x, screen_y;
+
+    if(window->flags & WIN_NODECORATION)
+        return;
+
+    //Start by limiting painting to the window's visible area
+    Window_apply_bound_clipping(window, 0, (List*)0);
+
+    //Draw border
+    Window_draw_border(window);
+
+    Context_clear_clip_rects(window->context);
+}
+
+//Request a repaint of a certain region of a window
+void Window_invalidate(Window* window, int top, int left, int bottom, int right) {
+
+    List* dirty_regions;
+    Rect* dirty_rect;
+
+    //This function takes coordinates in terms of window coordinates
+    //So we need to convert them to screen space 
+    int origin_x = Window_screen_x(window);
+    int origin_y = Window_screen_y(window);
+    top += origin_y;
+    bottom += origin_y;
+    left += origin_x;
+    right += origin_x;
+    
+    //Attempt to create a new dirty rect list 
+    if(!(dirty_regions = List_new()))
+        return;
+
+    if(!(dirty_rect = Rect_new(top, left, bottom, right))) {
+
+        free(dirty_regions);
+        return;
+    }
+
+    if(!List_add(dirty_regions, dirty_rect)) {
+
+        free(dirty_regions);
+        free(dirty_rect);
+        return;
+    }
+
+    Window_paint(window, dirty_regions, 0);
+
+    //Clean up the dirty rect list
+    List_remove_at(dirty_regions, 0);
+    free(dirty_regions);
+    free(dirty_rect); 
 }
 
 //Another override-redirect function
@@ -281,10 +341,13 @@ void Window_paint(Window* window, List* dirty_regions, uint8_t paint_children) {
             
                 temp_rect = (Rect*)List_get_at(dirty_regions, j);
                 
-                if(temp_rect->left <= (current_child->x + current_child->width - 1) &&
-                temp_rect->right >= current_child->x &&
-                temp_rect->top <= (current_child->y + current_child->height - 1) &&
-                temp_rect->bottom >= current_child->y)
+                screen_x = Window_screen_x(current_child);
+                screen_y = Window_screen_y(current_child);
+
+                if(temp_rect->left <= (screen_x + current_child->width - 1) &&
+                   temp_rect->right >= screen_x &&
+                   temp_rect->top <= (screen_y + current_child->height - 1) &&
+                   temp_rect->bottom >= screen_y)
                     break;
             }
 
@@ -343,6 +406,82 @@ List* Window_get_windows_above(Window* parent, Window* child) {
     return return_list; 
 }
 
+//Used to get a list of windows which the passed window overlaps
+//Same exact thing as get_windows_above, but goes backwards through
+//the list. Could probably be made a little less redundant if you really wanted
+List* Window_get_windows_below(Window* parent, Window* child) {
+
+    int i;
+    Window* current_window;
+    List* return_list;
+
+    //Attempt to allocate the output list
+    if(!(return_list = List_new()))
+        return return_list;
+
+    //We just need to get a list of all items in the
+    //child list at higher indexes than the passed window
+    //We start by finding the passed child in the list
+    for(i = parent->children->count - 1; i > -1; i--)
+        if(child == (Window*)List_get_at(parent->children, i))
+            break;
+
+    //Now we just need to add the remaining items in the list
+    //to the output (IF they overlap, of course)
+    //NOTE: As a bonus, this will also automatically fall through
+    //if the window wasn't found
+    for(; i > -1; i--) {
+
+        current_window = List_get_at(parent->children, i);
+
+        //Our good old rectangle intersection logic
+        if(current_window->x <= (child->x + child->width - 1) &&
+		   (current_window->x + current_window->width - 1) >= child->x &&
+		   current_window->y <= (child->y + child->height - 1) &&
+		   (current_window->y + current_window->height - 1) >= child->y)
+            List_add(return_list, current_window); //Insert the overlapping window
+    }
+
+    return return_list; 
+}
+
+//Breaking 
+void Window_raise(Window* window, uint8_t do_draw) {
+
+    int i;
+    Window *parent, *last_active;
+
+    if(!window->parent)
+        return;
+
+    parent = window->parent;
+
+    if(parent->active_child == window)
+        return;
+
+    last_active = parent->active_child;
+
+    //Find the child in the list
+    for(i = 0; i < parent->children->count; i++)
+        if((Window*)List_get_at(parent->children, i) == window)
+            break;
+
+    List_remove_at(parent->children, i); //Pull window out of list
+    List_add(parent->children, (void*)window); //Insert at the top
+  
+    //Make it active 
+    parent->active_child = window;
+   
+    //Do a redraw if it was requested
+    if(!do_draw)
+        return;
+
+    Window_paint(window, (List*)0, 1);
+
+    //Make sure the old active window gets an updated title color 
+    Window_update_title(last_active);
+}
+
 //We're wrapping this guy so that we can handle any needed redraw
 void Window_move(Window* window, int new_x, int new_y) {
 
@@ -393,7 +532,10 @@ void Window_move(Window* window, int new_x, int new_y) {
     window->context->clip_rects = replacement_list;
 
     //Now, let's get all of the siblings that we overlap before the move
-    dirty_windows = Window_get_windows_below(window);
+    dirty_windows = Window_get_windows_below(window->parent, window);
+
+    window->x = new_x;
+    window->y = new_y;
 
     //And we'll repaint all of them using the dirty rects
     //(removing them from the list as we go for convenience)
@@ -401,7 +543,7 @@ void Window_move(Window* window, int new_x, int new_y) {
         Window_paint((Window*)List_remove_at(dirty_windows, 0), dirty_list, 1);
 
     //The one thing that might still be dirty is the parent we're inside of
-    Window_paint(window->parent, dirty_list, 0)
+    Window_paint(window->parent, dirty_list, 0);
 
     //We're done with the lists, so we can dump them
     while(dirty_list->count)
@@ -412,48 +554,7 @@ void Window_move(Window* window, int new_x, int new_y) {
 
     //With the dirtied siblings redrawn, we can do the final update of 
     //the window location and paint it at that new position
-    window->x = new_x;
-    window->y = new_y;
     Window_paint(window, (List*)0, 1);
-}
-
-//Used to get a list of windows which the passed window overlaps
-//Same exact thing as get_windows_above, but goes backwards through
-//the list. Could probably be made a little less redundant if you really wanted
-List* Window_get_windows_below(Window* parent, Window* child) {
-
-    int i;
-    Window* current_window;
-    List* return_list;
-
-    //Attempt to allocate the output list
-    if(!(return_list = List_new()))
-        return return_list;
-
-    //We just need to get a list of all items in the
-    //child list at higher indexes than the passed window
-    //We start by finding the passed child in the list
-    for(i = parent->children->count - 1; i > -1; i--)
-        if(child == (Window*)List_get_at(parent->children, i))
-            break;
-
-    //Now we just need to add the remaining items in the list
-    //to the output (IF they overlap, of course)
-    //NOTE: As a bonus, this will also automatically fall through
-    //if the window wasn't found
-    for(; i > -1; i--) {
-
-        current_window = List_get_at(parent->children, i);
-
-        //Our good old rectangle intersection logic
-        if(current_window->x <= (child->x + child->width - 1) &&
-		   (current_window->x + current_window->width - 1) >= child->x &&
-		   current_window->y <= (child->y + child->height - 1) &&
-		   (current_window->y + current_window->height - 1) >= child->y)
-            List_add(return_list, current_window); //Insert the overlapping window
-    }
-
-    return return_list; 
 }
 
 //Interface between windowing system and mouse device
@@ -480,8 +581,7 @@ void Window_process_mouse(Window* window, uint16_t mouse_x,
 
             //Let's adjust things so that a raise happens whenever we click inside a 
             //child, to be more consistent with most other GUIs
-            List_remove_at(window->children, i); //Pull window out of list
-            List_add(window->children, (void*)child); //Insert at the top
+            Window_raise(child, 1);
 
             //See if the mouse position lies within the bounds of the current
             //window's 31 px tall titlebar
@@ -514,8 +614,9 @@ void Window_process_mouse(Window* window, uint16_t mouse_x,
     //Update drag window to match the mouse if we have an active drag window
     if(window->drag_child) {
 
-        window->drag_child->x = mouse_x - window->drag_off_x;
-        window->drag_child->y = mouse_y - window->drag_off_y;
+        //Changed to use 
+        Window_move(window->drag_child, mouse_x - window->drag_off_x,
+                    mouse_y - window->drag_off_y);
     }
 
     //If we didn't find a target in the search, then we ourselves are the target of any clicks
@@ -538,6 +639,7 @@ void Window_insert_child(Window* window, Window* child) {
     child->parent = window;
     child->context = window->context;
     List_add(window->children, child);
+    child->parent->active_child = child;
 }
 
 //A method to automatically create a new window in the provided parent window
@@ -559,6 +661,7 @@ Window* Window_create_window(Window* window, int16_t x, int16_t y,
 
     //Set the new child's parent 
     new_window->parent = window;
+    new_window->parent->active_child = new_window;
 
     return new_window;
 }

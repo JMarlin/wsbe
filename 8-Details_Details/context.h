@@ -15,6 +15,7 @@ typedef struct Context_struct {
     int translate_x; //Our new translation values
     int translate_y;
     List* clip_rects;
+    uint8_t clipping_on;
 } Context;
 
 //Methods

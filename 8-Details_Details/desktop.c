@@ -51,9 +51,7 @@ void Desktop_process_mouse(Desktop* desktop, uint16_t mouse_x,
     //Do the old generic mouse handling
     Window_process_mouse((Window*)desktop, mouse_x, mouse_y, mouse_buttons);
 
-    //Now that we've handled any changes the mouse may have caused, we need to
-    //update the screen to reflect those changes 
-    Window_paint((Window*)desktop);
+    //Window painting now happens inside of the window raise and move operations
 
     //And finally draw the hacky mouse, as usual
     Context_fill_rect(desktop->window.context, desktop->mouse_x, desktop->mouse_y, 10, 10, 0xFF000000);

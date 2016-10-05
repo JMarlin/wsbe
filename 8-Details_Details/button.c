@@ -50,4 +50,9 @@ void Button_mousedown_handler(Window* button_window, int x, int y) {
     Button* button = (Button*)button_window;
 
     button->color_toggle = !button->color_toggle;
+
+    //Since the button has visibly changed state, we need to invalidate the
+    //area that needs updating
+    Window_invalidate((Window*)button, 0, 0,
+                      button->window.height - 1, button->window.width - 1);
 }

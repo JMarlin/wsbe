@@ -24,6 +24,7 @@ Context* Context_new(uint16_t width, uint16_t height, uint32_t* buffer) {
     context->width = width; 
     context->height = height; 
     context->buffer = buffer;
+    context->clipping_on = 0;
 
     return context;
 }
@@ -98,11 +99,14 @@ void Context_fill_rect(Context* context, int x, int y,
         }
     } else {
 
-        screen_area.top = 0;
-        screen_area.left = 0;
-        screen_area.bottom = context->height - 1;
-        screen_area.right = context->width - 1;
-        Context_clipped_rect(context, x, y, width, height, &screen_area, color);
+        if(!context->clipping_on) {
+
+            screen_area.top = 0;
+            screen_area.left = 0;
+            screen_area.bottom = context->height - 1;
+            screen_area.right = context->width - 1;
+            Context_clipped_rect(context, x, y, width, height, &screen_area, color);
+        }
     }
 }
 
@@ -139,6 +143,8 @@ void Context_intersect_clip_rect(Context* context, Rect* rect) {
     Rect* current_rect;
     Rect* intersect_rect;
  
+    context->clipping_on = 1;
+
     if(!(output_rects = List_new()))
         return;
 
@@ -171,6 +177,8 @@ void Context_subtract_clip_rect(Context* context, Rect* subtracted_rect) {
     int i, j;
     Rect* cur_rect;
     List* split_rects;
+
+    context->clipping_on = 1;
 
     for(i = 0; i < context->clip_rects->count; ) {
 
@@ -223,6 +231,8 @@ void Context_add_clip_rect(Context* context, Rect* added_rect) {
 void Context_clear_clip_rects(Context* context) {
 
     Rect* cur_rect;
+
+    context->clipping_on = 0;
 
     //Remove and free until the list is empty
     while(context->clip_rects->count) {
