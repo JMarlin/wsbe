@@ -20,4 +20,3 @@ ListNode* ListNode_new(void* payload) {
 
     return list_node;
 }
-

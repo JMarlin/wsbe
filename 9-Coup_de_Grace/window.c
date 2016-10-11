@@ -56,6 +56,7 @@ int Window_init(Window* window, int16_t x, int16_t y, uint16_t width,
     window->paint_function = Window_paint_handler;
     window->mousedown_function = Window_mousedown_handler;
     window->active_child = (Window*)0;
+    window->title = (char*)0;
   
     return 1;
 }
@@ -104,6 +105,11 @@ void Window_draw_border(Window* window) {
                       window->width - 6, 25,
                       window->parent->active_child == window ? 
                           WIN_TITLECOLOR : WIN_TITLECOLOR_INACTIVE);
+
+    //Draw the window title
+    Context_draw_text(window->context, window->title, screen_x + 10, screen_y + 10,
+                      window->parent->active_child == window ? 
+                          WIN_TEXTCOLOR : WIN_TEXTCOLOR_INACTIVE);
 }
 
 //Apply clipping for window bounds without subtracting child window rects
@@ -113,6 +119,10 @@ void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_r
     int screen_x, screen_y, i;
     List* clip_windows;
     Window* clipping_window;
+
+    //Can't do this without a context
+    if(!window->context)
+        return;
 
     //Build the visibility rectangle for this window
     //If the window is decorated and we're recursing, we want to limit
@@ -186,10 +196,6 @@ void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_r
         
         clipping_window = (Window*)List_remove_at(clip_windows, 0);
 
-        //Make sure we don't try and clip the window from itself
-        if(clipping_window == window)
-            continue;
-
         //Get a rectangle from the window, subtract it from the clipping 
         //region, and dispose of it
         screen_x = Window_screen_x(clipping_window);
@@ -209,6 +215,9 @@ void Window_apply_bound_clipping(Window* window, int in_recursion, List* dirty_r
 void Window_update_title(Window* window) {
 
     int screen_x, screen_y;
+
+    if(!window->context)
+        return;
 
     if(window->flags & WIN_NODECORATION)
         return;
@@ -268,6 +277,10 @@ void Window_paint(Window* window, List* dirty_regions, uint8_t paint_children) {
     int i, j, screen_x, screen_y, child_screen_x, child_screen_y;
     Window* current_child;
     Rect* temp_rect;
+
+    //Can't paint without a context
+    if(!window->context)
+        return;
 
     //Start by limiting painting to the window's visible area
     Window_apply_bound_clipping(window, 0, dirty_regions);
@@ -391,7 +404,7 @@ List* Window_get_windows_above(Window* parent, Window* child) {
     //to the output (IF they overlap, of course)
     //NOTE: As a bonus, this will also automatically fall through
     //if the window wasn't found
-    for(; i < parent->children->count; i++) {
+    for(i++; i < parent->children->count; i++) {
 
         current_window = List_get_at(parent->children, i);
 
@@ -430,7 +443,7 @@ List* Window_get_windows_below(Window* parent, Window* child) {
     //to the output (IF they overlap, of course)
     //NOTE: As a bonus, this will also automatically fall through
     //if the window wasn't found
-    for(; i > -1; i--) {
+    for(i--; i > -1; i--) {
 
         current_window = List_get_at(parent->children, i);
 
@@ -633,13 +646,24 @@ void Window_mousedown_handler(Window* window, int x, int y) {
     return;
 }
 
+void Window_update_context(Window* window, Context* context) {
+
+    int i;
+
+    window->context = context;
+
+    for(i = 0; i < window->children->count; i++)
+        Window_update_context((Window*)List_get_at(window->children, i), context);
+}
+
 //Quick wrapper for shoving a new entry into the child list
 void Window_insert_child(Window* window, Window* child) {
 
     child->parent = window;
-    child->context = window->context;
     List_add(window->children, child);
     child->parent->active_child = child;
+    
+    Window_update_context(child, window->context);
 }
 
 //A method to automatically create a new window in the provided parent window
@@ -664,4 +688,82 @@ Window* Window_create_window(Window* window, int16_t x, int16_t y,
     new_window->parent->active_child = new_window;
 
     return new_window;
+}
+
+//Assign a string to the title of the window
+void Window_set_title(Window* window, char* new_title) {
+
+    int len, i;
+
+    //Make sure to free any preexisting title 
+    if(window->title) {
+
+        for(len = 0; window->title[len]; len++);
+        free(window->title);
+    }
+
+    //We don't have strlen, so we're doing this manually
+    for(len = 0; new_title[len]; len++);
+
+    //Try to allocate new memory to clone the string
+    //(+1 because of the trailing zero in a c-string)
+    if(!(window->title = (char*)malloc((len + 1) * sizeof(char))))
+        return;
+
+    //Clone the passed string into the window's title
+    //Including terminating zero
+    for(i = 0; i <= len; i++)
+        window->title[i] = new_title[i];
+
+    //Make sure the change is reflected on-screen
+    if(window->flags & WIN_NODECORATION)
+        Window_invalidate(window, 0, 0, window->height - 1, window->width - 1);
+    else
+        Window_update_title(window);
+}
+
+//Add the characters from the passed string to the end of the window title
+void Window_append_title(Window* window, char* additional_chars) {
+
+    char* new_string;
+    int original_length, additional_length, i;
+
+    //Set the title if there isn't already one
+    if(!window->title) {
+
+        Window_set_title(window, additional_chars);
+        return;
+    }
+
+    //Get the length of the original string
+    for(original_length = 0; window->title[original_length]; original_length++);
+
+    //Get the length of the new string
+    for(additional_length = 0; additional_chars[additional_length]; additional_length++);
+
+    //Try to malloc a new string of the needed size
+    if(!(new_string = (char*)malloc(sizeof(char) * (original_length + additional_length + 1)))) {
+        return;
+    }
+
+    //Copy the base string into the new string
+    for(i = 0; window->title[i]; i++)
+        new_string[i] = window->title[i];
+
+    //Copy the appended chars into the new string
+    for(i = 0; additional_chars[i]; i++)
+        new_string[original_length + i] = additional_chars[i];
+
+    //Add the final zero char
+    new_string[original_length + i] = 0;
+
+    //And swap the string pointers
+    free(window->title);
+    window->title = new_string;
+
+    //Make sure the change is reflected on-screen
+    if(window->flags & WIN_NODECORATION)
+        Window_invalidate(window, 0, 0, window->height - 1, window->width - 1);
+    else
+        Window_update_title(window); 
 }

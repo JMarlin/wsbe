@@ -32,5 +32,6 @@ void Context_intersect_clip_rect(Context* context, Rect* rect);
 void Context_subtract_clip_rect(Context* context, Rect* subtracted_rect);                       
 void Context_add_clip_rect(Context* context, Rect* rect);
 void Context_clear_clip_rects(Context* context);
+void Context_draw_text(Context* context, char* string, int x, int y, uint32_t color);
 
 #endif //CONTEXT_H

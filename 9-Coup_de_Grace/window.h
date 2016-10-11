@@ -10,6 +10,8 @@
 #define WIN_BGCOLOR     0xFFBBBBBB //A generic grey
 #define WIN_TITLECOLOR  0xFFD09070 //A nice subtle blue
 #define WIN_TITLECOLOR_INACTIVE 0xFF908080 //A darker shade 
+#define WIN_TEXTCOLOR 0xFFFFE0E0
+#define WIN_TEXTCOLOR_INACTIVE 0xFFBBBBBB
 #define WIN_BORDERCOLOR 0xFF000000 //Straight-up black
 #define WIN_TITLEHEIGHT 31 
 #define WIN_BORDERWIDTH 3
@@ -40,6 +42,7 @@ typedef struct Window_struct {
     uint8_t last_button_state;
     WindowPaintHandler paint_function;
     WindowMousedownHandler mousedown_function;
+    char* title;
 } Window;
 
 //Methods
@@ -61,6 +64,8 @@ void Window_move(Window* window, int new_x, int new_y);
 Window* Window_create_window(Window* window, int16_t x, int16_t y,  
                              uint16_t width, int16_t height, uint16_t flags);
 void Window_insert_child(Window* window, Window* child);   
-void Window_invalidate(Window* window, int top, int left, int bottom, int right);                         
+void Window_invalidate(Window* window, int top, int left, int bottom, int right); 
+void Window_set_title(Window* window, char* new_title);                       
+void Window_append_title(Window* window, char* additional_chars);
 
 #endif //WINDOW_H

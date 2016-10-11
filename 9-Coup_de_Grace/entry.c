@@ -1,6 +1,6 @@
 #include "context.h"
 #include "desktop.h"
-#include "button.h"
+#include "calculator.h"
 #include "../fake_lib/fake_os.h"
 
 //================| Entry Point |================//
@@ -15,6 +15,15 @@ void main_mouse_callback(uint16_t mouse_x, uint16_t mouse_y, uint8_t buttons) {
     Desktop_process_mouse(desktop, mouse_x, mouse_y, buttons);
 }
 
+//Button handler for creating a new calculator
+void spawn_calculator(Button* button, int x, int y) {
+
+    //Create and install a calculator
+    Calculator* temp_calc = Calculator_new();
+    Window_insert_child((Window*)desktop, (Window*)temp_calc);
+    Window_move((Window*)temp_calc, 0, 0);
+}
+
 //Create and draw a few rectangles and exit
 int main(int argc, char* argv[]) {
 
@@ -25,17 +34,11 @@ int main(int argc, char* argv[]) {
     //Create the desktop 
     desktop = Desktop_new(context);
 
-    //Sprinkle it with windows 
-    Window_create_window((Window*)desktop, 10, 10, 300, 200, 0);
-    Window* window = Window_create_window((Window*)desktop, 100, 150, 400, 400, 0);
-    Window_create_window((Window*)desktop, 200, 100, 200, 600, 0);
-    
-    //Create and install the button
-    Button* button = Button_new(307, 357, 80, 30);
-    Window_insert_child(window, (Window*)button);
-
-    Button* button2 = Button_new(307, 267, 80, 30);
-    Window_insert_child(window, (Window*)button2);
+    //Create a simple launcher window 
+    Button* launch_button = Button_new(10, 10, 150, 30);
+    Window_set_title((Window*)launch_button, "New Calculator");
+    launch_button->onmousedown = spawn_calculator;
+    Window_insert_child((Window*)desktop, (Window*)launch_button);
 
     //Initial draw
     Window_paint((Window*)desktop, (List*)0, 1);

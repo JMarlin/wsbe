@@ -3,9 +3,14 @@
 
 #include "window.h"
 
+struct Button_struct;
+
+typedef void (*ButtonMousedownHandler)(struct Button_struct*, int, int);
+
 typedef struct Button_struct {
     Window window;
     uint8_t color_toggle;
+    ButtonMousedownHandler onmousedown;
 } Button;
 
 Button* Button_new(int x, int y, int w, int h);

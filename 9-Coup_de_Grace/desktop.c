@@ -63,7 +63,12 @@ Desktop* Desktop_new(Context* context) {
 void Desktop_paint_handler(Window* desktop_window) {
   
     //Fill the desktop
-    Context_fill_rect(desktop_window->context, 0, 0, desktop_window->context->width, desktop_window->context->height, 0xFFFF9933);
+    Context_fill_rect(desktop_window->context, 0, 0, desktop_window->context->width, 
+                      desktop_window->context->height, 0xFFFF9933);
+
+    //Draw some test text
+    Context_draw_text(desktop_window->context, "Windowing Systems by Example",
+                      0, desktop_window->height - 12, 0xFFFFFFFF);
 }
 
 //Our overload of the Window_process_mouse function used to capture the screen mouse position 
