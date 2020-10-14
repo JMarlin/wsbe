@@ -1,3 +1,11 @@
+<ul>
+  {% for post in site.posts %}
+    <li>
+      <a href="{{ post.url }}">{{ post.title }}</a>
+    </li>
+  {% endfor %}
+</ul>
+
 <p>So, I’ll say this upfront and before I get into anything else: I am not a great programmer. Okay, so yes. I’ve been doing it, like I assume the majority of you have, since I was a little kid<sup>[<a title="Incidentally, I actually found a bunch of stuff I made in DarkBASIC when I was twelve and thirteen about a month ago and hoo-whee let me tell you how cringeworthy it was.">1</a>]</sup>. But I’ve always been a bit lazy about things and have never had a great drive for making sure I’m using really great design patterns all the time. I assume a good chunk of you can identify with my tendency to tell myself I’ll clean up and refactor once everything’s working with my fingers firmly crossed behind my own back.</p>
 
 <p><em>Okay, so you’re self-deprecating. We get it already. Why on earth are you opening with this depressing crap?</em></p>
