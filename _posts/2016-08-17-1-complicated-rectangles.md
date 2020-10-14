@@ -1,6 +1,7 @@
 ---
 layout: post
 title:  "1 - Complicated Rectangles"
+author: "Joe Marlin"
 ---
 
 <p><em>[<strong>Note For Returning Readers</strong>: After a bit of feedback, I decided to drop the JavaScript from this post to focus completely on the C implementation. I was worried that that would alienate people who want to play with the code without having to write a whole OS around it, so I've also updated the repo for this project using Emscripten so that you can run a simple build script and have the example code running on a canvas in the web browser of your choice right away. We now return you to your regularly scheduled updated article]</em></p>
